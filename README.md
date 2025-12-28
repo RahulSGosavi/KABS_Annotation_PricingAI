@@ -84,7 +84,7 @@ This project uses ES Modules via CDN (`esm.sh`) in `index.html`. This means ther
 *   **RLS (Row Level Security):** is enabled on Supabase. Users can only access/edit projects where `user_id` matches their Auth ID.
 *   **Storage Access:** Files are stored in a public bucket, but file paths are obfuscated with user IDs. For higher security, switch to signed URLs in `projectService.ts`.
 
-## 🚢 Deployment
+## 🚢 Deployment & Migration
 
-See `DEPLOYMENT.md` for instructions on deploying to Render or AWS.
-```
+*   **Deployment:** See `DEPLOYMENT.md` for instructions on deploying the frontend to Render or AWS.
+*   **AWS Migration:** See `AWS_MIGRATION.md` for a guide on moving the backend infrastructure to self-hosted AWS EC2.
