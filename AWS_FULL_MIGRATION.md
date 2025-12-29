@@ -1,123 +1,167 @@
-# Full Migration Guide: Supabase Cloud to AWS EC2
+# COMPLETE GUIDE: Migrating to AWS (RDS + EC2)
 
-This guide covers moving your entire backend (Database, Auth Users, and Storage Files) to AWS.
+This guide explains how to migrate your infrastructure to a production-grade AWS setup.
+Instead of running the database inside the web server, we will use **AWS RDS** (Managed Database) for reliability and **AWS EC2** for the application logic (Supabase Middleware).
 
-## Phase 1: AWS Server Setup
+---
 
-1.  **Launch EC2 Instance:**
-    *   **OS:** Ubuntu 22.04 LTS.
-    *   **Type:** `t3.medium` (Minimum) or `t3.large` (Recommended).
-    *   **Storage:** 30GB+ gp3.
-    *   **Security Group:** Open ports `22` (SSH), `80` (HTTP), `443` (HTTPS), `8000` (API Gateway), `5432` (Postgres - optional, for migration).
+## ARCHITECTURE OVERVIEW
 
-2.  **Install Docker on EC2:**
-    SSH into your instance and run:
+1.  **Database:** AWS RDS PostgreSQL (Stores all data).
+2.  **Middleware:** AWS EC2 Instance (Runs Supabase Auth, Storage, and Realtime API via Docker).
+3.  **Frontend:** Your React App (Connects to the EC2 Middleware).
+
+---
+
+## STEP 1: Create a Security Group (The Network)
+
+We need a security group to allow your EC2 instance to talk to your RDS database securely.
+
+1.  Go to **AWS Console** > **EC2** > **Security Groups**.
+2.  Click **Create security group**.
+    *   **Name:** `kabs-internal-sg`
+    *   **Description:** Allow internal traffic.
+    *   **VPC:** Default (or your custom VPC).
+3.  **Inbound Rules:**
+    *   Type: **PostgreSQL** (5432) | Source: **Anywhere-IPv4** (0.0.0.0/0) — *For initial setup only. Later lock this down to your EC2 IP.*
+    *   Type: **Custom TCP** (8000) | Source: **Anywhere-IPv4** (0.0.0.0/0) — *This allows your App to talk to the API.*
+    *   Type: **SSH** (22) | Source: **My IP**.
+4.  Click **Create security group**.
+
+---
+
+## STEP 2: Create the Database (AWS RDS)
+
+1.  Go to **AWS Console** > **RDS** > **Create database**.
+2.  **Choose a database creation method:** Standard create.
+3.  **Engine options:** PostgreSQL.
+4.  **Engine Version:** PostgreSQL 15.x or 16.x.
+5.  **Templates:** Free tier (for testing) or Production.
+6.  **Settings:**
+    *   **DB instance identifier:** `kabs-db`
+    *   **Master username:** `postgres`
+    *   **Master password:** Create a strong password (e.g., `SuperSecretPass123!`). **Write this down.**
+7.  **Instance configuration:** `db.t3.micro` (Free Tier) or `db.t3.medium`.
+8.  **Connectivity:**
+    *   **Public access:** **Yes** (Easier for setup, allows your local computer to manage it).
+    *   **VPC security groups:** Select `kabs-internal-sg` (created in Step 1).
+9.  **Additional configuration (Expand this section at bottom):**
+    *   **Initial database name:** `postgres`
+10. Click **Create database**.
+    *   *Wait 5-10 minutes for status to turn "Available".*
+    *   *Copy the **Endpoint** URL (e.g., `kabs-db.cxyz.us-east-1.rds.amazonaws.com`).*
+
+---
+
+## STEP 3: Setup the Middleware Server (EC2)
+
+1.  Go to **EC2** > **Launch Instance**.
+2.  **Name:** `Kabs-Middleware`
+3.  **OS:** Ubuntu Server 24.04 LTS.
+4.  **Instance Type:** `t3.small` or `t3.medium`.
+5.  **Key pair:** Create new key pair `kabs-key` -> Download .pem file.
+6.  **Network settings:**
+    *   Select existing security group: `kabs-internal-sg`.
+7.  **Storage:** 20 GiB gp3.
+8.  Click **Launch instance**.
+
+---
+
+## STEP 4: Install Supabase Middleware on EC2
+
+1.  **Connect to EC2:**
+    Open your terminal where the `.pem` key is:
     ```bash
-    # Update and install Docker
+    chmod 400 kabs-key.pem
+    ssh -i "kabs-key.pem" ubuntu@<EC2-PUBLIC-IP>
+    ```
+
+2.  **Install Docker:**
+    ```bash
     sudo apt-get update
     sudo apt-get install ca-certificates curl gnupg
     sudo install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     sudo chmod a+r /etc/apt/keyrings/docker.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     sudo apt-get update
     sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    
-    # Permission setup
     sudo usermod -aG docker $USER
-    # LOG OUT AND LOG BACK IN HERE
     ```
+    *Exit and SSH back in to apply group changes.*
 
-## Phase 2: Install Supabase on EC2
-
-1.  **Clone Supabase:**
+3.  **Download Supabase Config:**
     ```bash
     git clone --depth 1 https://github.com/supabase/supabase
     cd supabase/docker
     cp .env.example .env
     ```
 
-2.  **Generate Keys & Config:**
-    *   Run `openssl rand -base64 32` to generate a `JWT_SECRET`.
-    *   Go to [jwt.io](https://jwt.io).
-    *   **Payload:** `{"role": "anon", "iss": "supabase", "iat": 1700000000, "exp": 2000000000}`.
-    *   **Secret:** Paste your `JWT_SECRET`.
-    *   **Copy the Result:** This is your `ANON_KEY`.
-    *   Repeat with payload `{"role": "service_role", ...}` for `SERVICE_ROLE_KEY`.
-
-3.  **Update `.env`:**
+4.  **Point Middleware to AWS RDS:**
+    Edit the environment file:
     ```bash
     nano .env
     ```
-    *   Set `POSTGRES_PASSWORD`.
-    *   Set `JWT_SECRET`.
-    *   Set `ANON_KEY` and `SERVICE_ROLE_KEY`.
-    *   Set `API_EXTERNAL_URL=http://<YOUR_EC2_IP>:8000`
+    Change these values:
+    *   `POSTGRES_HOST`: Paste your **RDS Endpoint** here.
+    *   `POSTGRES_PORT`: `5432`
+    *   `POSTGRES_PASSWORD`: Your **RDS Password**.
+    *   `POSTGRES_DB`: `postgres`
+    *   `JWT_SECRET`: Generate a UUID (from uuidgenerator.net).
+    *   `ANON_KEY` & `SERVICE_ROLE_KEY`: Generate these at jwt.io using your JWT_SECRET.
+    *   `API_EXTERNAL_URL`: `http://<EC2-PUBLIC-IP>:8000`
 
-4.  **Start Services:**
+    *Save (Ctrl+X, Y, Enter).*
+
+5.  **Start Services (Skipping local DB):**
+    We need to tell Docker NOT to start the local `db` container, since we are using RDS.
+    
+    Edit `docker-compose.yml`:
+    ```bash
+    nano docker-compose.yml
+    ```
+    *   Find the `db:` service block.
+    *   Delete it or comment it out.
+    *   Find `depends_on: - db` in other services (like `rest`, `realtime`, `auth`, `storage`) and remove that line.
+    
+    *Alternatively, a quick hack is just stopping the db container after start, but editing compose is cleaner.*
+
+6.  **Run the Stack:**
     ```bash
     docker compose up -d
     ```
 
-## Phase 3: Database Migration (Schema + Users + Data)
+---
 
-**On your Local Machine:**
+## STEP 5: Initialize the Database
 
-1.  **Dump Data from Supabase Cloud:**
-    Get your connection string from Supabase Dashboard > Settings > Database.
-    
+Since RDS is fresh, it doesn't have the Supabase schemas (`auth`, `storage`, etc.). The Supabase services *attempt* to create them on startup, but standard RDS requires extensions.
+
+1.  **Connect to RDS** from your local computer (using TablePlus, DBeaver, or pgAdmin).
+    *   Host: RDS Endpoint
+    *   User: postgres
+    *   Pass: Your Password
+2.  **Enable Extensions:** Run this SQL query:
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    ```
+    *(Note: `pg_net` and `sodium` might fail on standard RDS without custom parameter groups, but basic Auth and Storage usually work without them).*
+
+3.  **Restart Containers on EC2:**
     ```bash
-    # Dump everything (Schema, Auth Users, Public Data, Storage Metadata)
-    docker run -it --rm postgres pg_dump "postgres://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres" \
-      --clean \
-      --if-exists \
-      --quote-all-identifiers \
-      --no-owner \
-      --no-privileges \
-      > full_backup.sql
+    docker compose restart
     ```
 
-2.  **Upload Dump to EC2:**
-    ```bash
-    scp -i key.pem full_backup.sql ubuntu@<EC2_IP>:~/
+---
+
+## STEP 6: Connect React App
+
+1.  In your local project root, create/edit `.env`:
+    ```env
+    VITE_SUPABASE_URL=http://<EC2-PUBLIC-IP>:8000
+    VITE_SUPABASE_ANON_KEY=<YOUR_ANON_KEY>
     ```
+2.  Run `npm run dev`.
 
-**On EC2:**
-
-3.  **Restore Data:**
-    ```bash
-    # Copy file into container
-    docker cp full_backup.sql supabase-db-1:/tmp/full_backup.sql
-    
-    # Execute Restore
-    docker exec -it supabase-db-1 psql -U postgres -f /tmp/full_backup.sql
-    ```
-
-*At this point, your EC2 database "knows" about the users and the files, but the actual PDF files are missing from the disk.*
-
-## Phase 4: Storage Migration (The Files)
-
-The database dump transferred the *metadata* (file names), but not the *binary files*. You must transfer them manually.
-
-1.  **On your Local Machine**, create a folder `migration`.
-2.  Save the `migrate-storage.js` script (provided in the codebase) into that folder.
-3.  Install dependencies:
-    ```bash
-    npm install @supabase/supabase-js
-    ```
-4.  Run the script:
-    ```bash
-    node migrate-storage.js
-    ```
-    *This script downloads PDFs from Supabase Cloud and uploads them to your EC2 instance.*
-
-## Phase 5: Frontend Update
-
-1.  Update `services/supabase.ts` in your React app.
-2.  Set `SUPABASE_URL` to `http://<EC2_IP>:8000`.
-3.  Set `SUPABASE_ANON_KEY` to the new key you generated in Phase 2.
-
-## Troubleshooting
-
-*   **CORS Issues:** If running locally and connecting to EC2, ensure `.env` in Docker allows cors.
-*   **Auth Emails:** You need to configure SMTP in the `.env` file on EC2 for email confirmations to work, or disable "Confirm Email" in the dashboard (localhost:8000 is the Studio).
+**You are now running on AWS RDS + EC2!**

@@ -220,7 +220,8 @@ export const Canvas: React.FC<CanvasProps> = ({
     return transform.point(point);
   };
 
-  const handleMouseDown = (e: any) => {
+  // Using Pointer Events for better tablet support
+  const handlePointerDown = (e: any) => {
     if (editingTextId) {
        // If clicking outside, finish edit
        handleTextComplete();
@@ -315,8 +316,11 @@ export const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
-  const handleMouseMove = (e: any) => {
+  const handlePointerMove = (e: any) => {
     if (!isDrawing.current || !currentShapeId.current) return;
+    
+    // Konva handles throttling of Pointer events automatically, 
+    // but we need to throttle adding points to React state to prevent lag.
     
     const pos = getPointerPos();
     const shapeIndex = shapes.findIndex(s => s.id === currentShapeId.current);
@@ -333,6 +337,19 @@ export const Canvas: React.FC<CanvasProps> = ({
       const newPoints = [shape.points![0], shape.points![1], pos.x, pos.y];
       onShapeUpdate(shape.id, { points: newPoints }, false);
     } else if (shape.type === ToolType.PEN || shape.type === ToolType.ERASER) {
+      // SMOOTHING OPTIMIZATION:
+      // Skip adding points that are too close to the previous point.
+      // This reduces the number of points React has to render and smoothens the line.
+      const len = shape.points!.length;
+      if (len >= 2) {
+          const lastX = shape.points![len - 2];
+          const lastY = shape.points![len - 1];
+          const dist = Math.sqrt(Math.pow(pos.x - lastX, 2) + Math.pow(pos.y - lastY, 2));
+          
+          // 4px threshold offers a good balance between accuracy and smoothness
+          if (dist < 4) return; 
+      }
+
       const newPoints = shape.points!.concat([pos.x, pos.y]);
       onShapeUpdate(shape.id, { points: newPoints }, false);
     } else if (shape.type === ToolType.ANGLE) {
@@ -351,7 +368,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = () => {
     if (isDrawing.current && currentShapeId.current) {
         const shape = shapes.find(s => s.id === currentShapeId.current);
         if (shape) {
@@ -454,12 +471,9 @@ export const Canvas: React.FC<CanvasProps> = ({
           y={stagePos.y}
           draggable={currentTool === ToolType.PAN}
           onWheel={handleWheel}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onTouchStart={handleMouseDown}
-          onTouchMove={handleMouseMove}
-          onTouchEnd={handleMouseUp}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
           ref={stageRef}
           style={{ backgroundColor: '#101010' }} 
         >
@@ -519,6 +533,7 @@ export const Canvas: React.FC<CanvasProps> = ({
                      tension={0.5}
                      stroke="black" // color doesn't matter for destination-out
                      opacity={1} // Full erase strength
+                     perfectDrawEnabled={false} // Optimization
                    />;
                }
 
@@ -558,6 +573,10 @@ export const Canvas: React.FC<CanvasProps> = ({
                    lineJoin="round" 
                    tension={shape.type === ToolType.PEN ? 0.5 : 0} 
                    opacity={shape.opacity}
+                   // Optimization for Freehand:
+                   perfectDrawEnabled={false} 
+                   listening={currentTool === ToolType.SELECT} // Only listen for clicks if in Select mode
+                   hitStrokeWidth={currentTool === ToolType.SELECT ? 20 : 0} // easier selection
                  />;
                }
                if (shape.type === ToolType.ARROW) {

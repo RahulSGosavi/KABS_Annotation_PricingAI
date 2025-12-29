@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ToolType } from '../../types';
 import { 
   MousePointer2, 
@@ -20,6 +20,8 @@ interface EditorToolbarProps {
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({ currentTool, setTool }) => {
+  const [hoveredTool, setHoveredTool] = useState<{ label: string; top: number; left: number } | null>(null);
+
   const tools = [
     { type: ToolType.SELECT, icon: MousePointer2, label: 'Select' },
     { type: ToolType.PAN, icon: Hand, label: 'Pan' },
@@ -34,28 +36,58 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ currentTool, setTo
     { type: ToolType.ERASER, icon: Eraser, label: 'Eraser' },
   ];
 
+  const handleMouseEnter = (e: React.MouseEvent, label: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredTool({
+      label,
+      top: rect.top + rect.height / 2,
+      left: rect.right + 12 // 12px gap from the button
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredTool(null);
+  };
+
   return (
-    <div className="w-14 md:w-16 bg-dark-800 border-r border-dark-700 flex flex-col items-center py-4 gap-2 md:gap-3 z-10 shrink-0 overflow-y-auto custom-scrollbar">
-      {tools.map((tool) => {
-        const isActive = currentTool === tool.type;
-        return (
-          <button
-            key={tool.type}
-            onClick={() => setTool(tool.type)}
-            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all relative group shrink-0 ${
-              isActive 
-                ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50' 
-                : 'text-gray-400 hover:bg-dark-700 hover:text-white'
-            }`}
-            title={tool.label}
-          >
-            <tool.icon size={20} />
-            <div className="absolute left-14 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity hidden md:block">
-              {tool.label}
+    <>
+      <div className="w-18 bg-dark-800 border-r border-dark-700 flex flex-col items-center py-4 gap-3 z-10 shrink-0 h-full overflow-y-auto custom-scrollbar">
+        {tools.map((tool) => {
+          const isActive = currentTool === tool.type;
+          return (
+            <div key={tool.type} className="shrink-0">
+              <button
+                onClick={() => setTool(tool.type)}
+                onMouseEnter={(e) => handleMouseEnter(e, tool.label)}
+                onMouseLeave={handleMouseLeave}
+                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                  isActive 
+                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-900/50' 
+                    : 'text-gray-400 hover:bg-dark-700 hover:text-white'
+                }`}
+              >
+                <tool.icon size={24} />
+              </button>
             </div>
-          </button>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+
+      {/* Fixed Tooltip Overlay - Renders outside the scroll container */}
+      {hoveredTool && (
+        <div 
+            className="fixed z-50 px-3 py-1.5 bg-dark-900 border border-dark-600 text-white text-xs font-medium rounded-lg shadow-xl pointer-events-none hidden md:block animate-in fade-in duration-150"
+            style={{ 
+                top: hoveredTool.top, 
+                left: hoveredTool.left,
+                transform: 'translateY(-50%)' 
+            }}
+        >
+            {hoveredTool.label}
+            {/* Arrow pointing left */}
+            <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-dark-900 border-l border-b border-dark-600 transform rotate-45"></div>
+        </div>
+      )}
+    </>
   );
 };
