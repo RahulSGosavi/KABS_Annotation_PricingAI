@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@motionone/utils": "^10.18.0",
     "@supabase/supabase-js": "^2.39.0",
     "framer-motion": "^10.16.0",
     "jspdf": "^2.5.1",
