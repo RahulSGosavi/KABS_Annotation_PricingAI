@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import { Project, User } from '../types';
 import { Button } from './ui/Button';
-import { Plus, FileText, Clock, UploadCloud, Trash2, Search, CheckCircle2, PencilRuler, AlertTriangle, X } from 'lucide-react';
+import { Plus, FileText, Clock, UploadCloud, Trash2, Search, CheckCircle2, PencilRuler, AlertTriangle, X, ArrowLeft } from 'lucide-react';
 
 export const ProjectList: React.FC<{ user: User }> = ({ user }) => {
   const navigate = useNavigate();
@@ -143,6 +144,14 @@ export const ProjectList: React.FC<{ user: User }> = ({ user }) => {
 
   return (
     <div className="p-8 max-w-7xl mx-auto w-full">
+      <button 
+        onClick={() => navigate('/dashboard')} 
+        className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors"
+      >
+        <ArrowLeft size={20} />
+        <span className="font-medium">Back to Dashboard</span>
+      </button>
+
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>

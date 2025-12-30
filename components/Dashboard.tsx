@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PenTool, Calculator, ArrowRight } from 'lucide-react';
@@ -49,9 +50,9 @@ export const Dashboard: React.FC = () => {
           <div className="w-12 h-12 bg-dark-700 rounded-xl flex items-center justify-center mb-6 text-purple-500 group-hover:scale-110 transition-transform">
             <Calculator size={24} />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Pricing AI</h2>
+          <h2 className="text-2xl font-bold mb-2">Pricing AI Agent</h2>
           <p className="text-gray-400 mb-6">
-            Automated material costing and estimation powered by AI.
+            Intelligent agent that estimates projects from PDF and Excel files.
           </p>
           <div className="flex items-center text-purple-500 font-medium opacity-50">
             Learn More <ArrowRight size={16} className="ml-2" />

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { supabase } from './services/supabase';
@@ -8,6 +9,11 @@ import { ProjectList } from './components/ProjectList';
 import { EditorPage } from './components/Editor/EditorPage';
 import { PricingPlaceholder } from './components/PricingPlaceholder';
 import { Navbar } from './components/Layout/Navbar';
+import { LandingPage } from './components/LandingPage';
+import { ProductDetails } from './components/ProductDetails';
+import { PricingPage } from './components/PricingPage';
+import { PaymentPage } from './components/PaymentPage';
+import { PrivacyPolicy, TermsConditions } from './components/LegalPages';
 
 // Layout wrapper for pages requiring Navbar
 const Layout: React.FC<{ children: React.ReactNode, user: User | null }> = ({ children, user }) => {
@@ -71,9 +77,18 @@ const App: React.FC = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={!user ? <Auth /> : <Navigate to="/" />} />
+        {/* Public Routes */}
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/product-details" element={<ProductDetails />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsConditions />} />
         
-        <Route path="/" element={
+        <Route path="/login" element={!user ? <Auth /> : <Navigate to="/dashboard" />} />
+        
+        {/* Protected Routes */}
+        <Route path="/dashboard" element={
           <ProtectedRoute user={user}>
             <Layout user={user}><Dashboard /></Layout>
           </ProtectedRoute>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { User } from '../../types';
 import { LogOut, User as UserIcon, ChevronDown } from 'lucide-react';
@@ -21,14 +22,25 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
     <nav className="h-16 border-b border-dark-700 bg-dark-900 flex items-center justify-between px-6 z-50 relative">
       <div 
         className="flex items-center gap-3 cursor-pointer"
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/dashboard')}
       >
-        <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-purple-600 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-lg">K</span>
+        <img 
+          src="/logo.png" 
+          alt="KABS" 
+          className="h-8 w-auto object-contain"
+          onError={(e) => {
+             e.currentTarget.style.display = 'none';
+             document.getElementById('nav-fallback')?.classList.remove('hidden');
+          }}
+        />
+        <div id="nav-fallback" className="hidden flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">K</span>
+            </div>
+            <span className="text-lg font-semibold tracking-tight text-white">
+              KABS <span className="text-gray-400 font-normal">Annotation & Pricing AI</span>
+            </span>
         </div>
-        <span className="text-lg font-semibold tracking-tight text-white">
-          KABS <span className="text-gray-400 font-normal">Annotation & Pricing AI</span>
-        </span>
       </div>
 
       {user && (
