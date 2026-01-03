@@ -20,36 +20,32 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
 
   return (
     <nav className="h-16 border-b border-dark-700 bg-dark-900 flex items-center justify-between px-6 z-50 relative">
-      <div
+      <div 
         className="flex items-center gap-3 cursor-pointer"
         onClick={() => navigate('/dashboard')}
       >
-        <div className="bg-white/95 rounded-md px-3 py-0.5 flex items-center h-14">
-          <img
-            src={`/logo.png?t=${new Date().getTime()}`}
-            alt="KABS"
-            className="h-full w-auto object-contain"
-            onError={(e) => {
-              const target = e.currentTarget;
-              target.style.display = 'none';
-              target.parentElement!.style.display = 'none';
-              document.getElementById('nav-fallback')?.classList.remove('hidden');
-            }}
-          />
-        </div>
+        <img 
+          src="/logo.png" 
+          alt="KABS" 
+          className="h-8 w-auto object-contain"
+          onError={(e) => {
+             e.currentTarget.style.display = 'none';
+             document.getElementById('nav-fallback')?.classList.remove('hidden');
+          }}
+        />
         <div id="nav-fallback" className="hidden flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">K</span>
-          </div>
-          <span className="text-lg font-semibold tracking-tight text-white">
-            KABS <span className="text-gray-400 font-normal">Annotation & Pricing AI</span>
-          </span>
+            <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">K</span>
+            </div>
+            <span className="text-lg font-semibold tracking-tight text-white">
+              KABS <span className="text-gray-400 font-normal">Annotation & Pricing AI</span>
+            </span>
         </div>
       </div>
 
       {user && (
         <div className="relative">
-          <button
+          <button 
             className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors py-2"
             onClick={() => setShowDropdown(!showDropdown)}
           >
@@ -66,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user }) => {
                 <p className="text-xs text-gray-400">Signed in as</p>
                 <p className="text-sm text-white truncate">{user.email}</p>
               </div>
-              <button
+              <button 
                 onClick={handleLogout}
                 className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-dark-700 flex items-center gap-2"
               >

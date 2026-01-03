@@ -1,8 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
-// Load environment variables from .env.local
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env.local') });
 
 // --- CONFIGURATION ---
 
@@ -11,8 +9,8 @@ const OLD_URL = 'https://jzgocimbraxghmvdqwno.supabase.co';
 const OLD_SERVICE_KEY = 'PLACE_YOUR_OLD_SERVICE_ROLE_KEY_HERE'; // Found in Dashboard > Settings > API
 
 // 2. NEW AWS DETAILS (Destination)
-const NEW_URL = process.env.VITE_SUPABASE_URL;
-const NEW_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const NEW_URL = 'http://<YOUR_EC2_IP>:8000';
+const NEW_SERVICE_KEY = 'PLACE_YOUR_NEW_SERVICE_ROLE_KEY_HERE'; // Generated in Phase 2
 
 // 3. BUCKET NAME
 const BUCKET_NAME = 'project-files';
@@ -41,23 +39,23 @@ async function migrate() {
 
   // We need to handle folders recursively, but for KABS flattened structure, 
   // we usually have user_id/filename. Let's iterate.
-
+  
   // NOTE: The .list() command at root might only show folders (user_ids).
   // We iterate through root items.
   for (const item of files) {
     if (!item.id) {
-      // It's likely a folder
-      console.log(`📂 Checking folder: ${item.name}`);
-      const { data: subFiles } = await oldClient.storage.from(BUCKET_NAME).list(item.name);
-
-      if (subFiles) {
-        for (const file of subFiles) {
-          await transferFile(`${item.name}/${file.name}`);
-        }
-      }
+       // It's likely a folder
+       console.log(`📂 Checking folder: ${item.name}`);
+       const { data: subFiles } = await oldClient.storage.from(BUCKET_NAME).list(item.name);
+       
+       if (subFiles) {
+         for (const file of subFiles) {
+           await transferFile(`${item.name}/${file.name}`);
+         }
+       }
     } else {
-      // It's a file at root
-      await transferFile(item.name);
+       // It's a file at root
+       await transferFile(item.name);
     }
   }
 
